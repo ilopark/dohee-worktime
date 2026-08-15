@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도희의 추가근로 캘린더</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --panel-2:#fbfcfd;
+    --ink:#16191d; --ink-2:#5a6472; --ink-3:#8b95a3;
+    --line:#e3e7ec; --line-2:#eef1f4;
+    --accent:#3b6ef2; --accent-soft:#e8effe;
+    --holiday:#e5484d; --holiday-soft:#fdecec;
+    --sat:#2f6fd0;
+    --ot:#b25a00; --ot-soft:#fdf1e2;
+    --work:#0f7a5a; --work-soft:#e4f5ef;
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 8px 24px rgba(16,24,40,.06);
+    --r:12px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0f1216; --panel:#171b21; --panel-2:#1c2128;
+      --ink:#e8ecf1; --ink-2:#9aa5b4; --ink-3:#6b7684;
+      --line:#272d36; --line-2:#20262e;
+      --accent:#6f97ff; --accent-soft:#1c2740;
+      --holiday:#ff6369; --holiday-soft:#33191b;
+      --sat:#6aa8ff;
+      --ot:#e8a24a; --ot-soft:#33260f;
+      --work:#3fd0a0; --work-soft:#0f2e25;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:24px 18px 64px}
+
+  header.top{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:18px}
+  header.top h1{font-size:20px; margin:0; letter-spacing:-.02em}
+  header.top .sub{font-size:13px; color:var(--ink-3)}
+
+  .bar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+    padding:10px 12px; box-shadow:var(--shadow); margin-bottom:16px;
+  }
+  .month{font-size:18px; font-weight:700; min-width:150px; letter-spacing:-.02em}
+  button, select, input{font-family:inherit; font-size:14px; color:inherit}
+  .btn{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
+    border-radius:9px; padding:7px 12px; cursor:pointer; line-height:1.3;
+  }
+  .btn:hover{border-color:var(--accent); color:var(--accent)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  .btn.primary:hover{opacity:.9; color:#fff}
+  .btn.icon{padding:7px 11px; font-weight:700}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .spacer{flex:1}
+  .status{font-size:12px; color:var(--ink-3)}
+  .status.err{color:var(--holiday)}
+  .who{font-size:12px; color:var(--ink-3); max-width:190px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap}
+
+  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+    padding:14px 15px; box-shadow:var(--shadow);
+  }
+  .card .lab{font-size:12px; color:var(--ink-2); display:flex; align-items:center; gap:6px}
+  .card .val{font-size:26px; font-weight:750; letter-spacing:-.03em; margin-top:6px; line-height:1.1}
+  .card .val small{font-size:14px; font-weight:600; color:var(--ink-2); margin-left:2px}
+  .card .meta{font-size:12px; color:var(--ink-3); margin-top:4px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.w{background:var(--work)} .dot.o{background:var(--ot)}
+  .dot.h{background:var(--holiday)} .dot.t{background:var(--accent)}
+
+  .grid2{display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; align-items:start}
+
+  .cal{background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow)}
+  .dow{display:grid; grid-template-columns:repeat(7,1fr); background:var(--panel-2); border-bottom:1px solid var(--line)}
+  .dow div{padding:9px 0; text-align:center; font-size:12px; font-weight:650; color:var(--ink-2)}
+  .dow div:first-child{color:var(--holiday)} .dow div:last-child{color:var(--sat)}
+  .days{display:grid; grid-template-columns:repeat(7,1fr)}
+  .day{
+    min-height:96px; border-right:1px solid var(--line-2); border-bottom:1px solid var(--line-2);
+    padding:6px 7px 7px; cursor:pointer; position:relative; background:var(--panel);
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .day:nth-child(7n){border-right:0}
+  .day:hover{background:var(--panel-2)}
+  .day.out{background:var(--panel-2); opacity:.45; cursor:default}
+  .day.out:hover{background:var(--panel-2)}
+  .day.sel{box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft)}
+  .day.hol{background:var(--holiday-soft)}
+  .day.hol.sel{background:var(--accent-soft)}
+  .dnum{font-size:13px; font-weight:650; line-height:1}
+  .day.sun .dnum, .day.hol .dnum{color:var(--holiday)}
+  .day.sat .dnum{color:var(--sat)}
+  .day.today .dnum{
+    background:var(--accent); color:#fff; border-radius:50%;
+    width:20px;height:20px; display:inline-flex; align-items:center; justify-content:center;
+    margin:-3px 0 -2px -3px;
+  }
+  .hname{font-size:10.5px; color:var(--holiday); font-weight:600; line-height:1.25;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .tags{margin-top:auto; display:flex; flex-direction:column; gap:3px}
+  .tag{
+    font-size:10.5px; font-weight:700; border-radius:5px; padding:2px 5px;
+    line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .tag.w{background:var(--work-soft); color:var(--work)}
+  .tag.o{background:var(--ot-soft); color:var(--ot)}
+  .memo-dot{position:absolute; top:7px; right:7px; width:5px;height:5px;border-radius:50%;background:var(--ink-3)}
+
+  .side{display:flex; flex-direction:column; gap:16px; position:sticky; top:16px}
+  .box{background:var(--panel); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}
+  .box h3{margin:0; padding:12px 15px; font-size:13px; border-bottom:1px solid var(--line);
+    background:var(--panel-2); letter-spacing:-.01em}
+  .box .body{padding:14px 15px}
+  .fld{margin-bottom:12px}
+  .fld label{display:block; font-size:12px; color:var(--ink-2); margin-bottom:5px; font-weight:600}
+  .fld .hint{font-size:11px; color:var(--ink-3); font-weight:400; margin-top:4px; line-height:1.45}
+  input[type=number], input[type=text]{
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--panel-2); outline:none;
+  }
+  input:focus{border-color:var(--accent)}
+  input:disabled{opacity:.4; cursor:not-allowed}
+  .chips{display:flex; gap:5px; flex-wrap:wrap; margin-top:6px}
+  .chip{font-size:11.5px; padding:3px 8px; border-radius:99px; border:1px solid var(--line);
+    background:var(--panel-2); cursor:pointer; color:var(--ink-2)}
+  .chip:hover{border-color:var(--accent); color:var(--accent)}
+  .selday{font-size:15px; font-weight:700; letter-spacing:-.02em}
+  .selkind{font-size:12px; margin-top:3px}
+  .selkind .b{display:inline-block; padding:2px 7px; border-radius:99px; font-weight:700; font-size:11px}
+  .b.hol{background:var(--holiday-soft); color:var(--holiday)}
+  .b.wk{background:var(--accent-soft); color:var(--accent)}
+  .row{display:flex; gap:8px}
+  .row>*{flex:1}
+  .warn{font-size:11.5px; color:var(--holiday); margin-top:6px; display:none}
+
+  .list{max-height:340px; overflow:auto}
+  .item{display:flex; gap:10px; align-items:center; padding:9px 15px; border-bottom:1px solid var(--line-2); font-size:12.5px; cursor:pointer}
+  .item:last-child{border-bottom:0}
+  .item:hover{background:var(--panel-2)}
+  .item .d{width:64px; font-weight:650; flex:none}
+  .item .d.hol{color:var(--holiday)}
+  .item .n{color:var(--ink-3); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .item .v{display:flex; gap:4px; flex:none}
+  .empty{padding:22px 15px; text-align:center; color:var(--ink-3); font-size:12.5px}
+
+  /* 로그인 게이트 */
+  .gate{
+    position:fixed; inset:0; background:var(--bg); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .gate[hidden]{display:none}
+  .gate .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    box-shadow:var(--shadow); padding:32px 30px; max-width:390px; width:100%; text-align:center;
+  }
+  .gate h2{margin:0 0 8px; font-size:19px; letter-spacing:-.02em}
+  .gate p{margin:0 0 22px; font-size:13px; color:var(--ink-2); line-height:1.6}
+  .gate .msg{font-size:12.5px; margin-top:16px; line-height:1.6; min-height:18px}
+  .gate .msg.err{color:var(--holiday)}
+  .gbtn{
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; padding:11px 16px; border-radius:10px; cursor:pointer;
+    background:#fff; color:#1f1f1f; border:1px solid #dadce0; font-size:14px; font-weight:600;
+  }
+  .gbtn:hover{background:#f7f8f8}
+  .gbtn:disabled{opacity:.5; cursor:not-allowed}
+  .gbtn svg{width:18px;height:18px;flex:none}
+
+  @media (max-width:900px){
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .grid2{grid-template-columns:1fr}
+    .side{position:static}
+    .day{min-height:76px}
+  }
+  @media print{ .bar,.side{display:none} body{background:#fff} }
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="panel">
+    <h2>도희의 추가근로 캘린더</h2>
+    <p>등록된 계정으로만 열 수 있습니다.<br>구글 계정으로 로그인해주세요.</p>
+    <button class="gbtn" id="signin">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Google 계정으로 로그인
+    </button>
+    <div class="msg" id="gateMsg"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" hidden>
+
+  <header class="top">
+    <h1>도희의 추가근로 캘린더</h1>
+    <span class="sub">한국 공휴일 기준 · 주말/휴일 근무 &amp; 야근 기록</span>
+  </header>
+
+  <div class="bar">
+    <button class="btn icon" id="prev" title="이전 달">‹</button>
+    <div class="month" id="monthLabel">—</div>
+    <button class="btn icon" id="next" title="다음 달">›</button>
+    <button class="btn" id="today">오늘</button>
+    <div class="spacer"></div>
+    <span class="status" id="status"></span>
+    <span class="who" id="who"></span>
+    <button class="btn" id="signout">로그아웃</button>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="lab"><span class="dot h"></span>주말·휴일 근무</div>
+      <div class="val" id="sumHolWork">0<small>시간</small></div>
+      <div class="meta" id="sumHolWorkDays">0일</div>
+    </div>
+    <div class="card">
+      <div class="lab"><span class="dot o"></span>평일 야근</div>
+      <div class="val" id="sumWdOt">0<small>시간</small></div>
+      <div class="meta" id="sumWdOtDays">0일</div>
+    </div>
+    <div class="card">
+      <div class="lab"><span class="dot w"></span>휴일 근무 중 야근</div>
+      <div class="val" id="sumHolOt">0<small>시간</small></div>
+      <div class="meta" id="sumHolOtDays">0일</div>
+    </div>
+    <div class="card">
+      <div class="lab"><span class="dot t"></span>이번 달 총 추가근로</div>
+      <div class="val" id="sumTotal">0<small>시간</small></div>
+      <div class="meta" id="sumTotalMeta">주말·휴일 근무 + 평일 야근</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="cal">
+        <div class="dow"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+        <div class="days" id="days"></div>
+      </div>
+
+      <div class="box" style="margin-top:16px">
+        <h3>이번 달 근무 내역</h3>
+        <div class="list" id="list"></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="box">
+        <h3>기록 입력</h3>
+        <div class="body">
+          <div class="selday" id="selDay">날짜를 선택하세요</div>
+          <div class="selkind" id="selKind"></div>
+
+          <div style="height:12px"></div>
+
+          <div class="fld">
+            <label id="labWork">근무 시간 (주말·휴일)</label>
+            <input type="number" id="inWork" min="0" max="24" step="0.5" placeholder="0">
+            <div class="chips" id="chipWork">
+              <span class="chip" data-t="work" data-v="2">2h</span>
+              <span class="chip" data-t="work" data-v="4">4h</span>
+              <span class="chip" data-t="work" data-v="6">6h</span>
+              <span class="chip" data-t="work" data-v="8">8h</span>
+            </div>
+            <div class="hint" id="hintWork">평일에는 정규근무라 기록하지 않습니다.</div>
+          </div>
+
+          <div class="fld">
+            <label id="labOt">야근 시간</label>
+            <input type="number" id="inOt" min="0" max="24" step="0.5" placeholder="0">
+            <div class="chips">
+              <span class="chip" data-t="ot" data-v="1">1h</span>
+              <span class="chip" data-t="ot" data-v="2">2h</span>
+              <span class="chip" data-t="ot" data-v="3">3h</span>
+              <span class="chip" data-t="ot" data-v="4">4h</span>
+            </div>
+            <div class="hint" id="hintOt"></div>
+            <div class="warn" id="warnOt">야근 시간이 근무 시간보다 많습니다.</div>
+          </div>
+
+          <div class="fld">
+            <label>메모</label>
+            <input type="text" id="inMemo" placeholder="예: 서버 점검, 마감 대응">
+          </div>
+
+          <div class="fld">
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+              <input type="checkbox" id="inOverride" style="width:auto;margin:0">
+              <span id="labOverride">이 날을 휴일로 직접 지정</span>
+            </label>
+            <div class="hint" id="hintOverride">회사 창립기념일·임시공휴일처럼 자료에 없는 날에 사용하세요.</div>
+          </div>
+
+          <div class="row">
+            <button class="btn primary" id="save">저장</button>
+            <button class="btn" id="clear">삭제</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+
+const LS_HOL = "dohee.holidays.v1";   // 공휴일은 공개 자료라 네트워크 캐시로만 로컬에 둔다
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── 오프라인 백업용 공휴일 (API 실패 시에만 사용) ──────────────────
+const FALLBACK = {
+  fixed: ["01-01","03-01","05-05","06-06","08-15","10-03","10-09","12-25"],
+  fixedName: {"01-01":"신정","03-01":"삼일절","05-05":"어린이날","06-06":"현충일",
+              "08-15":"광복절","10-03":"개천절","10-09":"한글날","12-25":"성탄절"},
+  lunar: {
+    2025:[["01-28","설날 연휴"],["01-29","설날"],["01-30","설날 연휴"],["05-05","부처님오신날"],
+          ["05-06","대체공휴일"],["10-05","추석 연휴"],["10-06","추석"],["10-07","추석 연휴"],["10-08","대체공휴일"]],
+    2026:[["02-16","설날 연휴"],["02-17","설날"],["02-18","설날 연휴"],["03-02","대체공휴일"],
+          ["05-24","부처님오신날"],["05-25","대체공휴일"],["09-24","추석 연휴"],["09-25","추석"],["09-26","추석 연휴"]],
+    2027:[["02-06","설날 연휴"],["02-07","설날"],["02-08","설날 연휴"],["02-09","대체공휴일"],
+          ["05-13","부처님오신날"],["09-14","추석 연휴"],["09-15","추석"],["09-16","추석 연휴"]]
+  }
+};
+
+// ── 상태 ────────────────────────────────────────────────────────
+const state = { entries:{}, override:{} };
+let holCache = loadHol();
+let view = new Date(); view.setDate(1);
+let selected = null;
+
+function loadHol(){ try{ return JSON.parse(localStorage.getItem(LS_HOL) || "{}"); }catch(e){ return {}; } }
+function saveHol(){ try{ localStorage.setItem(LS_HOL, JSON.stringify(holCache)); }catch(e){} }
+
+const $ = id => document.getElementById(id);
+
+// ── 날짜 유틸 ───────────────────────────────────────────────────
+const pad = n => (n<10?"0":"") + n;
+const key = d => d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+function parseKey(k){ const p = k.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+const fmtHours = h => (Math.round(h*100)/100).toString();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function setStatus(msg, isErr){
+  const el = $("status");
+  el.textContent = msg; el.className = "status" + (isErr ? " err" : "");
+}
+
+// ── 공휴일 조회 ─────────────────────────────────────────────────
+function buildFallback(year){
+  const map = {};
+  FALLBACK.fixed.forEach(md => { map[year+"-"+md] = FALLBACK.fixedName[md]; });
+  (FALLBACK.lunar[year] || []).forEach(p => { map[year+"-"+p[0]] = p[1]; });
+  return map;
+}
+
+async function ensureHolidays(year){
+  year = String(year);
+  if (holCache[year]) return holCache[year];
+  try{
+    const r = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/KR`);
+    if (!r.ok) throw new Error(r.status);
+    const arr = await r.json();
+    const map = {};
+    arr.forEach(h => { map[h.date] = h.localName || h.name; });
+    if (Object.keys(map).length === 0) throw new Error("empty");
+    holCache[year] = map; saveHol();
+    return map;
+  }catch(e){
+    holCache[year] = buildFallback(+year);   // 저장은 안 한다 → 다음 실행 때 API 재시도
+    setStatus("공휴일 API 연결 실패 · 내장 자료 사용 중", true);
+    return holCache[year];
+  }
+}
+
+function apiHoliday(k){
+  const y = k.slice(0,4);
+  return (holCache[y] && holCache[y][k]) || null;
+}
+const isWeekend = k => { const d = parseKey(k).getDay(); return d === 0 || d === 6; };
+// 도희가 손대기 전, 달력과 API만 보고 판단한 결과
+const naturalRest = k => isWeekend(k) || !!apiHoliday(k);
+
+function holidayName(k){
+  if (state.override[k] === "wd") return null;
+  return apiHoliday(k) || (state.override[k] === "hol" ? "지정 휴일" : null);
+}
+// 주말·공휴일이면 true. 도희가 지정한 값이 API보다 우선한다.
+function isRest(k){
+  const ov = state.override[k];
+  if (ov === "wd") return false;
+  if (ov === "hol") return true;
+  return naturalRest(k);
+}
+function kindLabel(k){
+  const dow = parseKey(k).getDay();
+  if (!isRest(k)) return { rest:false, text: naturalRest(k) ? "평일로 지정함" : "평일", cls:"wk" };
+  const h = holidayName(k);
+  if (h) return { rest:true, text:h + (dow===0?" · 일요일":dow===6?" · 토요일":""), cls:"hol" };
+  return { rest:true, text: dow===0 ? "일요일" : "토요일", cls:"hol" };
+}
+
+// ── Supabase 저장/조회 ──────────────────────────────────────────
+async function loadAll(){
+  const { data, error } = await sb.from("work_log").select("*");
+  if (error){ setStatus("불러오기 실패: " + error.message, true); return false; }
+  state.entries = {}; state.override = {};
+  data.forEach(r => {
+    const w = Number(r.work_hours) || 0, o = Number(r.ot_hours) || 0, memo = r.memo || "";
+    if (w > 0 || o > 0 || memo) state.entries[r.day] = { work:w, ot:o, memo };
+    if (r.day_override) state.override[r.day] = r.day_override;
+  });
+  return true;
+}
+
+// 한 날짜의 현재 상태를 서버에 반영한다. 비면 행을 지운다.
+async function pushDay(k){
+  const e = state.entries[k];
+  const ov = state.override[k] || null;
+  const blank = (!e || (!e.work && !e.ot && !e.memo)) && !ov;
+
+  setStatus("저장 중…");
+  const { error } = blank
+    ? await sb.from("work_log").delete().eq("day", k)
+    : await sb.from("work_log").upsert({
+        day: k,
+        work_hours: e ? e.work : 0,
+        ot_hours:   e ? e.ot   : 0,
+        memo:       e ? e.memo : "",
+        day_override: ov,
+        updated_at: new Date().toISOString()
+      });
+
+  if (error) setStatus("저장 실패: " + error.message, true);
+  else setStatus("저장됨");
+  return !error;
+}
+
+// ── 렌더 ────────────────────────────────────────────────────────
+async function render(){
+  const y = view.getFullYear(), m = view.getMonth();
+  $("monthLabel").textContent = y + "년 " + (m+1) + "월";
+  await ensureHolidays(y);
+  // 달 경계에서 이전/다음 해 셀도 그려지므로 함께 확보
+  if (m === 0) await ensureHolidays(y-1);
+  if (m === 11) await ensureHolidays(y+1);
+  paint();
+}
+
+function paint(){
+  const y = view.getFullYear(), m = view.getMonth();
+  const first = new Date(y, m, 1);
+  const start = new Date(y, m, 1 - first.getDay());
+  const todayKey = key(new Date());
+  const box = $("days");
+  box.innerHTML = "";
+
+  const last = new Date(y, m+1, 0).getDate();
+  const cells = Math.ceil((first.getDay() + last) / 7) * 7;
+
+  for (let i=0; i<cells; i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate()+i);
+    const k = key(d), inMonth = d.getMonth() === m;
+    const e = state.entries[k];
+    const hn = holidayName(k), dow = d.getDay();
+
+    const cell = document.createElement("div");
+    cell.className = "day"
+      + (inMonth ? "" : " out")
+      + (dow===0 ? " sun" : dow===6 ? " sat" : "")
+      + (hn && inMonth ? " hol" : "")
+      + (k === todayKey ? " today" : "")
+      + (k === selected ? " sel" : "");
+    cell.dataset.k = k;
+
+    const num = document.createElement("div");
+    num.className = "dnum"; num.textContent = d.getDate();
+    cell.appendChild(num);
+
+    if (hn && inMonth){
+      const hl = document.createElement("div");
+      hl.className = "hname"; hl.textContent = hn; hl.title = hn;
+      cell.appendChild(hl);
+    }
+
+    if (e && inMonth){
+      const tags = document.createElement("div");
+      tags.className = "tags";
+      // 평일로 바뀐 날의 근무 시간은 합계에서 빠지므로 태그도 감춘다
+      if (e.work > 0 && isRest(k)){
+        const t1 = document.createElement("div");
+        t1.className = "tag w"; t1.textContent = "근무 " + fmtHours(e.work) + "h";
+        tags.appendChild(t1);
+      }
+      if (e.ot > 0){
+        const t2 = document.createElement("div");
+        t2.className = "tag o"; t2.textContent = "야근 " + fmtHours(e.ot) + "h";
+        tags.appendChild(t2);
+      }
+      cell.appendChild(tags);
+      if (e.memo){
+        const md = document.createElement("div");
+        md.className = "memo-dot"; md.title = e.memo;
+        cell.appendChild(md);
+      }
+    }
+
+    if (inMonth) cell.addEventListener("click", () => { selected = k; paint(); });
+    box.appendChild(cell);
+  }
+
+  summarize();
+  renderList();
+  renderEditor();
+}
+
+function monthEntries(){
+  const prefix = view.getFullYear() + "-" + pad(view.getMonth()+1) + "-";
+  return Object.keys(state.entries)
+    .filter(k => k.startsWith(prefix))
+    .filter(k => { const e = state.entries[k]; return e.work > 0 || e.ot > 0 || e.memo; })
+    .sort();
+}
+
+function summarize(){
+  let holWork=0, holWorkDays=0, wdOt=0, wdOtDays=0, holOt=0, holOtDays=0;
+
+  monthEntries().forEach(k => {
+    const e = state.entries[k];
+    if (isRest(k)){
+      if (e.work > 0){ holWork += e.work; holWorkDays++; }
+      if (e.ot > 0){ holOt += e.ot; holOtDays++; }
+    } else if (e.ot > 0){
+      wdOt += e.ot; wdOtDays++;
+    }
+  });
+
+  setVal("sumHolWork", holWork);
+  setVal("sumWdOt", wdOt);
+  setVal("sumHolOt", holOt);
+  setVal("sumTotal", holWork + wdOt);
+
+  $("sumHolWorkDays").textContent = holWorkDays + "일 근무";
+  $("sumWdOtDays").textContent = wdOtDays + "일 야근";
+  $("sumHolOtDays").textContent =
+    holOtDays === 0 ? "휴일 야근 없음" : holOtDays + "일 (휴일 근무 + 야근 중복)";
+  $("sumTotalMeta").textContent =
+    "주말·휴일 " + fmtHours(holWork) + "h + 평일 야근 " + fmtHours(wdOt) + "h";
+}
+function setVal(id, v){ $(id).innerHTML = fmtHours(v) + '<small>시간</small>'; }
+
+function renderList(){
+  const el = $("list");
+  const ks = monthEntries();
+  if (ks.length === 0){
+    el.innerHTML = '<div class="empty">이번 달 기록이 없습니다. 달력에서 날짜를 눌러 추가하세요.</div>';
+    return;
+  }
+  const DOW = ["일","월","화","수","목","금","토"];
+  el.innerHTML = "";
+  ks.forEach(k => {
+    const e = state.entries[k], d = parseKey(k), rest = isRest(k), hn = holidayName(k);
+    const name = hn || (rest ? (d.getDay()===0 ? "일요일" : "토요일") : "평일");
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML =
+      '<div class="d' + (rest ? " hol" : "") + '">' + (d.getMonth()+1) + '/' + d.getDate() +
+        ' (' + DOW[d.getDay()] + ')</div>' +
+      '<div class="n">' + esc(e.memo || name) + '</div>' +
+      '<div class="v">' +
+        (e.work > 0 && rest ? '<span class="tag w">근무 ' + fmtHours(e.work) + 'h</span>' : '') +
+        (e.ot > 0 ? '<span class="tag o">야근 ' + fmtHours(e.ot) + 'h</span>' : '') +
+      '</div>';
+    row.addEventListener("click", () => { selected = k; paint(); });
+    el.appendChild(row);
+  });
+}
+
+// ── 에디터 ──────────────────────────────────────────────────────
+function renderEditor(){
+  const inWork = $("inWork"), inOt = $("inOt"), inMemo = $("inMemo"), inOv = $("inOverride");
+
+  if (!selected){
+    $("selDay").textContent = "날짜를 선택하세요";
+    $("selKind").textContent = "";
+    inWork.value = inOt.value = inMemo.value = "";
+    inWork.disabled = inOt.disabled = inMemo.disabled = inOv.disabled = true;
+    $("hintWork").textContent = "";
+    $("hintOt").textContent = "";
+    return;
+  }
+
+  const d = parseKey(selected), kind = kindLabel(selected);
+  const DOW = ["일","월","화","수","목","금","토"];
+  $("selDay").textContent = (d.getMonth()+1) + "월 " + d.getDate() + "일 (" + DOW[d.getDay()] + ")";
+  $("selKind").innerHTML = '<span class="b ' + kind.cls + '">' + esc(kind.text) + '</span>';
+
+  inOt.disabled = inMemo.disabled = inOv.disabled = false;
+  inWork.disabled = !kind.rest;
+
+  const e = state.entries[selected] || { work:0, ot:0, memo:"" };
+  inWork.value = e.work || "";
+  inOt.value = e.ot || "";
+  inMemo.value = e.memo || "";
+
+  // 자연스럽게 휴일인 날엔 "평일로 되돌리기", 평일엔 "휴일로 지정"으로 뜻이 뒤집힌다
+  const natural = naturalRest(selected);
+  inOv.checked = natural
+    ? state.override[selected] === "wd"
+    : state.override[selected] === "hol";
+  $("labOverride").textContent =
+    natural ? "이 날은 휴일이 아님 (평일로 처리)" : "이 날을 휴일로 직접 지정";
+  $("hintOverride").textContent =
+    natural ? "공휴일 자료가 틀렸거나 평소처럼 출근한 날에 사용하세요."
+            : "회사 창립기념일·임시공휴일처럼 자료에 없는 날에 사용하세요.";
+
+  $("chipWork").style.opacity = kind.rest ? "1" : ".35";
+  $("chipWork").style.pointerEvents = kind.rest ? "auto" : "none";
+
+  if (kind.rest){
+    $("labWork").textContent = "근무 시간 (주말·휴일)";
+    $("hintWork").textContent = "이 날 실제로 일한 총 시간을 입력하세요.";
+    $("labOt").textContent = "그중 야근 시간";
+    $("hintOt").textContent = "휴일 근무 중 늦게까지 남은 시간. 위 근무 시간에 포함된 값입니다.";
+  } else {
+    $("labWork").textContent = "근무 시간 (평일은 입력 불가)";
+    $("hintWork").textContent = "평일 정규근무는 추가근로에 포함하지 않습니다.";
+    $("labOt").textContent = "야근 시간";
+    $("hintOt").textContent = "정규 퇴근시간 이후 더 일한 시간을 입력하세요.";
+  }
+  checkWarn();
+}
+
+function checkWarn(){
+  const w = parseFloat($("inWork").value) || 0;
+  const o = parseFloat($("inOt").value) || 0;
+  const rest = selected ? kindLabel(selected).rest : false;
+  $("warnOt").style.display = (rest && o > w) ? "block" : "none";
+}
+
+async function doSave(){
+  if (!selected) return;
+  const rest = kindLabel(selected).rest;
+  const w = rest ? (parseFloat($("inWork").value) || 0) : 0;
+  const o = parseFloat($("inOt").value) || 0;
+  const memo = $("inMemo").value.trim();
+
+  if (w === 0 && o === 0 && !memo) delete state.entries[selected];
+  else state.entries[selected] = { work:w, ot:o, memo };
+
+  paint();
+  await pushDay(selected);
+}
+
+async function doClear(){
+  if (!selected) return;
+  delete state.entries[selected];
+  delete state.override[selected];
+  paint();
+  await pushDay(selected);
+}
+
+// ── 이벤트 ──────────────────────────────────────────────────────
+$("prev").onclick = () => { view.setMonth(view.getMonth()-1); render(); };
+$("next").onclick = () => { view.setMonth(view.getMonth()+1); render(); };
+$("today").onclick = () => {
+  const n = new Date();
+  view = new Date(n.getFullYear(), n.getMonth(), 1);
+  selected = key(n); render();
+};
+$("save").onclick = doSave;
+$("clear").onclick = doClear;
+$("inWork").oninput = checkWarn;
+$("inOt").oninput = checkWarn;
+$("inOverride").onchange = async function(){
+  if (!selected) return;
+  if (this.checked) state.override[selected] = naturalRest(selected) ? "wd" : "hol";
+  else delete state.override[selected];
+  paint();
+  await pushDay(selected);
+};
+document.querySelectorAll(".chip").forEach(c => {
+  c.onclick = () => {
+    $(c.dataset.t === "work" ? "inWork" : "inOt").value = c.dataset.v;
+    checkWarn();
+  };
+});
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT"){ if (e.key === "Enter") doSave(); return; }
+  if (e.key === "ArrowLeft") $("prev").click();
+  if (e.key === "ArrowRight") $("next").click();
+});
+
+// ── 인증 ────────────────────────────────────────────────────────
+function gateMsg(msg, isErr){
+  const el = $("gateMsg");
+  el.textContent = msg; el.className = "msg" + (isErr ? " err" : "");
+}
+
+$("signin").onclick = async () => {
+  $("signin").disabled = true;
+  gateMsg("구글로 이동 중…");
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.href.split("#")[0].split("?")[0] }
+  });
+  if (error){ gateMsg("로그인 실패: " + error.message, true); $("signin").disabled = false; }
+};
+
+$("signout").onclick = async () => { await sb.auth.signOut(); };
+
+let currentUid = null;
+// 미등록 계정을 쫓아낼 때 뒤따르는 SIGNED_OUT 이벤트가 거절 사유를 지우지 못하게 막는다
+let rejecting = false;
+
+async function handleSession(session){
+  if (!session){
+    currentUid = null;
+    showGate();
+    if (rejecting) rejecting = false;   // 거절 메시지는 그대로 둔다
+    else gateMsg("");
+    return;
+  }
+  if (session.user.id === currentUid) return;   // 초기 세션 이벤트와 중복 실행 방지
+  currentUid = session.user.id;
+  await showApp(session);
+}
+
+async function showApp(session){
+  // 진짜 방어선은 RLS다. 이 확인은 거절당한 사람에게 이유를 알려주기 위한 것.
+  const { data: allowed, error } = await sb.rpc("is_allowed");
+  if (error){
+    gateMsg("권한 확인 실패: " + error.message, true);
+    $("signin").disabled = false;
+    return;
+  }
+  if (!allowed){
+    rejecting = true;
+    currentUid = null;
+    gateMsg(session.user.email + " 계정은 등록되어 있지 않습니다.", true);
+    await sb.auth.signOut();
+    $("signin").disabled = false;
+    return;
+  }
+
+  $("gate").hidden = true;
+  $("app").hidden = false;
+  $("who").textContent = session.user.email;
+  $("who").title = session.user.email;
+
+  if (await loadAll()){
+    selected = key(new Date());
+    await render();
+    setStatus("");
+  }
+}
+
+function showGate(){
+  $("app").hidden = true;
+  $("gate").hidden = false;
+  $("signin").disabled = false;
+}
+
+sb.auth.onAuthStateChange((event, session) => { handleSession(session); });
+
+const { data: { session } } = await sb.auth.getSession();
+await handleSession(session);
+</script>
+</body>
+</html>
