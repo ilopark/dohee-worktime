@@ -416,7 +416,7 @@ function kindLabel(k){
 
 // ── Supabase 저장/조회 ──────────────────────────────────────────
 async function loadAll(){
-  const { data, error } = await sb.from("work_log").select("*");
+  const { data, error } = await sb.from("dohee_work_log").select("*");
   if (error){ setStatus("불러오기 실패: " + error.message, true); return false; }
   state.entries = {}; state.override = {};
   data.forEach(r => {
@@ -435,8 +435,8 @@ async function pushDay(k){
 
   setStatus("저장 중…");
   const { error } = blank
-    ? await sb.from("work_log").delete().eq("day", k)
-    : await sb.from("work_log").upsert({
+    ? await sb.from("dohee_work_log").delete().eq("day", k)
+    : await sb.from("dohee_work_log").upsert({
         day: k,
         work_hours: e ? e.work : 0,
         ot_hours:   e ? e.ot   : 0,
@@ -742,7 +742,7 @@ async function handleSession(session){
 
 async function showApp(session){
   // 진짜 방어선은 RLS다. 이 확인은 거절당한 사람에게 이유를 알려주기 위한 것.
-  const { data: allowed, error } = await sb.rpc("is_allowed");
+  const { data: allowed, error } = await sb.rpc("dohee_is_allowed");
   if (error){
     gateMsg("권한 확인 실패: " + error.message, true);
     $("signin").disabled = false;

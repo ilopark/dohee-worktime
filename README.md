@@ -16,7 +16,7 @@ schema.sql    Supabase 테이블 + RLS 정책 ← 한 번 실행
 `config.js`의 anon key는 브라우저에 그대로 노출됩니다. **이것은 정상이며**, 화면을 가리는 것으로는
 아무것도 막을 수 없습니다. 실제 차단은 `schema.sql`의 RLS 정책이 합니다.
 
-- `allowed_emails` 테이블에 등록된 이메일만 `work_log`를 읽고 쓸 수 있습니다.
+- `dohee_allowed_emails` 테이블에 등록된 이메일만 `dohee_work_log`를 읽고 쓸 수 있습니다.
 - 다른 구글 계정으로 로그인 자체는 성공하더라도, 데이터는 한 행도 조회되지 않고 저장도 거부됩니다.
 - 로그인 화면에서 즉시 로그아웃시키는 건 사용자에게 이유를 알려주기 위한 것이지 방어선이 아닙니다.
 
@@ -33,8 +33,16 @@ schema.sql    Supabase 테이블 + RLS 정책 ← 한 번 실행
 `schema.sql`을 열어 **맨 아래 `WIFE_EMAIL@gmail.com`을 실제 구글 계정으로 바꾼 뒤**,
 파일 전체를 복사해 Supabase 대시보드의 **SQL Editor**에 붙여넣고 실행합니다.
 
-> 나중에 허용 계정을 바꾸려면 SQL Editor에서 `allowed_emails` 테이블에 INSERT 하거나
+> 나중에 허용 계정을 바꾸려면 SQL Editor에서 `dohee_allowed_emails` 테이블에 INSERT 하거나
 > 기존 행을 DELETE 하면 됩니다. 앱 코드는 건드릴 필요가 없습니다.
+
+#### 이미 쓰고 있는 Supabase 프로젝트에 얹는 경우
+
+무료 플랜은 사용자당 활성 프로젝트 2개까지라 새로 못 만들 수 있습니다. 기존 프로젝트에 그대로 얹어도 됩니다.
+테이블과 함수 이름에 모두 `dohee_` 접두어가 붙어 있어 충돌하지 않고, 정책도 `dohee_work_log` 에만 걸립니다.
+다만 5단계에서 **`Site URL` 은 건드리지 말고 `Redirect URLs` 에 추가만** 하세요. Site URL 을 바꾸면
+그 프로젝트를 쓰는 기존 앱의 로그인이 깨집니다. 이 앱은 `redirectTo` 를 직접 넘기므로 Redirect URLs 에만
+등록돼 있으면 정상 동작합니다.
 
 ### 3. GitHub 저장소 만들고 배포하기
 
