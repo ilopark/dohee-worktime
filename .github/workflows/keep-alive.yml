@@ -1,0 +1,54 @@
+name: keep-alive
+
+# Supabase 무료 플랜은 7일간 API 요청이 없으면 프로젝트를 일시정지시킨다.
+# 매일 한 번 가볍게 찔러서 그 타이머를 리셋한다.
+#
+# 이 프로젝트(dlolqjgiamonfilfntxk)는 도희 캘린더와 도리로 가계부가 함께 쓰므로
+# 이 워크플로 하나로 두 앱의 백엔드가 모두 유지된다.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # 매일 03:17 UTC (한국시간 12:17)
+  workflow_dispatch:        # Actions 탭에서 수동 실행용
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Supabase 깨우기
+        env:
+          # publishable key 는 브라우저에 이미 공개되는 값이라 그대로 둬도 된다.
+          # 접근 차단은 schema.sql 의 RLS 정책이 담당한다.
+          URL: https://dlolqjgiamonfilfntxk.supabase.co
+          KEY: sb_publishable_k9qS8EfKTJn2sWFI4F7Bcg_rJJac721
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "$URL/rest/v1/dohee_work_log?select=day&limit=1" \
+            -H "apikey: $KEY")
+          echo "REST 응답: HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::예상과 다른 응답입니다. 프로젝트가 이미 일시정지됐거나 키가 바뀌었을 수 있습니다."
+            exit 1
+          fi
+
+      # GitHub 은 public 저장소에서 60일간 아무 활동이 없으면 스케줄 워크플로를
+      # 자동으로 꺼버린다. 워크플로 실행 자체는 '활동'으로 안 쳐준다.
+      # 그래서 월 1회만 파일 한 줄을 갱신해 커밋한다.
+      - name: 월 1회 하트비트 커밋
+        run: |
+          stamp=$(date -u +%Y-%m)
+          if [ "$(cat .github/keepalive.txt 2>/dev/null)" = "$stamp" ]; then
+            echo "이번 달 하트비트는 이미 기록됨 — 건너뜀"
+            exit 0
+          fi
+          echo "$stamp" > .github/keepalive.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive.txt
+          git commit -m "keep-alive: $stamp"
+          git push
