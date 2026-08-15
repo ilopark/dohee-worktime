@@ -5,6 +5,6 @@
 
 export const SUPABASE_URL = "https://dlolqjgiamonfilfntxk.supabase.co";
 
-// ↓ Supabase 대시보드 → Project Settings → API 에서 anon public 키를 복사해 넣으세요.
-//   (대시보드에 따라 API Keys → Publishable key 로 표시되기도 합니다)
-export const SUPABASE_ANON_KEY = "여기에-anon-public-키-붙여넣기";
+// Project Settings → API Keys → Publishable key
+// (예전 대시보드의 anon public 키에 해당한다. Secret key 는 절대 여기 넣지 말 것)
+export const SUPABASE_ANON_KEY = "sb_publishable_k9qS8EfKTJn2sWFI4F7Bcg_rJJac721";
