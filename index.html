@@ -208,6 +208,19 @@
     .side{position:static}
     .day{min-height:76px}
   }
+
+  /* 폰 크기. 한 칸이 50px 남짓이라 라벨을 빼고 숫자만 남긴다. */
+  @media (max-width:640px){
+    .wrap{padding:16px 10px 48px}
+    .dow div{font-size:11px; padding:7px 0}
+    .day{min-height:70px; padding:4px 4px 5px; gap:3px}
+    .dnum{font-size:12px}
+    .day.today .dnum{width:18px; height:18px; margin:-2px 0 -2px -2px}
+    .hname{font-size:9.5px}
+    .tag{font-size:10px; padding:1px 4px; border-radius:4px}
+    .tag .tl{display:none}
+    .memo-dot{top:5px; right:5px}
+  }
   @media print{ .bar,.side{display:none} body{background:#fff} }
 </style>
 </head>
@@ -286,21 +299,6 @@
 
           <div style="height:12px"></div>
 
-          <!-- 주말·휴일에만 보인다 -->
-          <div class="fld" id="fldWork">
-            <label>근무 시간</label>
-            <input type="number" id="inWork" min="0" max="24" step="0.5" placeholder="0">
-            <div class="chips" data-t="work">
-              <span class="chip" data-v="0.5">+0.5</span>
-              <span class="chip" data-v="1">+1</span>
-              <span class="chip" data-v="2">+2</span>
-              <span class="chip" data-v="4">+4</span>
-              <span class="chip" data-v="8">+8</span>
-              <span class="chip reset">지우기</span>
-            </div>
-            <div class="hint">이 날 실제로 일한 총 시간입니다. 버튼은 누를 때마다 더해집니다.</div>
-          </div>
-
           <!-- 평일에만 보인다 -->
           <div class="fld" id="fldBase">
             <label>기본 근무</label>
@@ -319,10 +317,11 @@
             <div class="hint">선택한 시간만큼 총 근로시간에서 빠집니다.</div>
           </div>
 
-          <div class="fld" id="fldOt">
-            <label>야근 시간</label>
-            <input type="number" id="inOt" min="0" max="24" step="0.5" placeholder="0">
-            <div class="chips" data-t="ot">
+          <!-- 평일이면 야근, 주말·휴일이면 휴일근로. 어느 쪽이든 추가 근로시간이 된다. -->
+          <div class="fld" id="fldExtra">
+            <label id="labExtra">야근 시간</label>
+            <input type="number" id="inExtra" min="0" max="24" step="0.5" placeholder="0">
+            <div class="chips">
               <span class="chip" data-v="0.5">+0.5</span>
               <span class="chip" data-v="1">+1</span>
               <span class="chip" data-v="2">+2</span>
@@ -330,7 +329,7 @@
               <span class="chip" data-v="8">+8</span>
               <span class="chip reset">지우기</span>
             </div>
-            <div class="hint">정규 퇴근시간 이후 더 일한 시간입니다.</div>
+            <div class="hint" id="hintExtra">정규 퇴근시간 이후 더 일한 시간입니다.</div>
           </div>
 
           <div class="fld">
@@ -555,16 +554,20 @@ function paint(){
       const rest = isRest(k);
       // 성격이 안 맞는 값은 합계에서도 빠지므로 태그도 감춘다
       // (휴일↔평일을 뒤집으면 예전에 넣어둔 값이 남아 있을 수 있다)
-      const add = (cls, text) => {
+      // 라벨은 .tl 로 감싼다. 좁은 화면에서는 CSS 가 이것만 숨겨 숫자를 살린다 —
+      // 색으로 이미 구분되므로 "근무 8h" 가 "근"으로 잘리는 것보다 "8h" 가 낫다.
+      const add = (cls, label, value) => {
         const t = document.createElement("div");
-        t.className = "tag " + cls; t.textContent = text;
+        t.className = "tag " + cls;
+        t.innerHTML = (label ? '<span class="tl">' + label + ' </span>' : "") + esc(value);
+        t.title = (label ? label + " " : "") + value;
         tags.appendChild(t);
       };
       if (rest){
-        if (e.work > 0) add("w", "근무 " + fmtHours(e.work) + "h");
+        if (e.work > 0) add("w", "근무", fmtHours(e.work) + "h");
       } else {
-        if (e.leave > 0) add("l", LEAVE_LABEL[e.leave] || "휴가");
-        if (e.ot > 0) add("o", "야근 " + fmtHours(e.ot) + "h");
+        if (e.leave > 0) add("l", "", LEAVE_LABEL[e.leave] || "휴가");
+        if (e.ot > 0) add("o", "야근", fmtHours(e.ot) + "h");
       }
       cell.appendChild(tags);
       if (e.memo){
@@ -672,16 +675,16 @@ function renderList(){
 
 // ── 에디터 ──────────────────────────────────────────────────────
 function renderEditor(){
-  const inWork = $("inWork"), inOt = $("inOt"), inMemo = $("inMemo");
+  const inExtra = $("inExtra"), inMemo = $("inMemo");
   const inOv = $("inOverride"), inLeave = $("inLeave");
 
   if (!selected){
     $("selDay").textContent = "날짜를 선택하세요";
     $("selKind").textContent = "";
-    inWork.value = inOt.value = inMemo.value = "";
+    inExtra.value = inMemo.value = "";
     inLeave.value = "0";
-    inWork.disabled = inOt.disabled = inMemo.disabled = inOv.disabled = inLeave.disabled = true;
-    ["fldWork","fldBase","fldLeave","fldOt"].forEach(id => { $(id).hidden = true; });
+    inExtra.disabled = inMemo.disabled = inOv.disabled = inLeave.disabled = true;
+    ["fldBase","fldLeave","fldExtra"].forEach(id => { $(id).hidden = true; });
     return;
   }
 
@@ -690,20 +693,24 @@ function renderEditor(){
   $("selDay").textContent = (d.getMonth()+1) + "월 " + d.getDate() + "일 (" + DOW[d.getDay()] + ")";
   $("selKind").innerHTML = '<span class="b ' + kind.cls + '">' + esc(kind.text) + '</span>';
 
-  inWork.disabled = inOt.disabled = inMemo.disabled = inOv.disabled = inLeave.disabled = false;
+  inExtra.disabled = inMemo.disabled = inOv.disabled = inLeave.disabled = false;
 
   const e = state.entries[selected] || { work:0, ot:0, leave:0, memo:"" };
-  inWork.value = e.work || "";
-  inOt.value = e.ot || "";
+  // 같은 칸이 평일이면 야근(ot), 주말·휴일이면 휴일근로(work) 를 담는다
+  inExtra.value = (kind.rest ? e.work : e.ot) || "";
   inLeave.value = String(e.leave || 0);
   inMemo.value = e.memo || "";
 
-  // 주말·휴일은 근무 시간만, 평일은 기본 8시간 + 휴가 + 야근
-  $("fldWork").hidden = !kind.rest;
+  // 기본 근무와 휴가는 평일에만. 추가 근로시간 칸은 어느 날이든 나온다.
+  $("fldExtra").hidden = false;
   $("fldBase").hidden = kind.rest;
   $("fldLeave").hidden = kind.rest;
-  $("fldOt").hidden = kind.rest;
   if (!kind.rest) renderBaseVal();
+
+  $("labExtra").textContent = kind.rest ? "휴일 근무 시간" : "야근 시간";
+  $("hintExtra").textContent = kind.rest
+    ? "이 날 일한 시간입니다. 그대로 추가 근로시간이 됩니다."
+    : "정규 퇴근시간 이후 더 일한 시간입니다. 그대로 추가 근로시간이 됩니다.";
 
   // 자연스럽게 휴일인 날엔 "평일로 되돌리기", 평일엔 "휴일로 지정"으로 뜻이 뒤집힌다
   const natural = naturalRest(selected);
@@ -727,10 +734,11 @@ function renderBaseVal(){
 async function doSave(){
   if (!selected) return;
   const rest = kindLabel(selected).rest;
-  // 성격에 안 맞는 값은 아예 0으로 지운다. 그래야 나중에 휴일↔평일을 뒤집어도
-  // 예전 값이 되살아나 합계를 흔들지 않는다.
-  const w  = rest ? (parseFloat($("inWork").value) || 0) : 0;
-  const o  = rest ? 0 : (parseFloat($("inOt").value) || 0);
+  // 입력칸은 하나뿐이고, 그날 성격에 따라 휴일근로와 야근 중 한쪽으로 들어간다.
+  // 반대쪽은 0으로 지운다 — 나중에 휴일↔평일을 뒤집어도 옛 값이 되살아나지 않도록.
+  const v  = parseFloat($("inExtra").value) || 0;
+  const w  = rest ? v : 0;
+  const o  = rest ? 0 : v;
   const lv = rest ? 0 : (parseFloat($("inLeave").value) || 0);
   const memo = $("inMemo").value.trim();
 
@@ -769,9 +777,8 @@ $("inOverride").onchange = async function(){
 };
 // 버튼은 값을 갈아치우지 않고 더한다. 그래서 지우는 수단이 따로 필요하다.
 document.querySelectorAll(".chips .chip").forEach(c => {
-  const target = c.closest(".chips").dataset.t === "work" ? "inWork" : "inOt";
   c.onclick = () => {
-    const el = $(target);
+    const el = $("inExtra");
     if (c.classList.contains("reset")){ el.value = ""; return; }
     el.value = fmtHours(Math.min(24, (parseFloat(el.value) || 0) + parseFloat(c.dataset.v)));
   };
