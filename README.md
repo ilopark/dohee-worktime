@@ -4,10 +4,42 @@
 GitHub Pages에 정적 파일로 올라가고, 기록은 Supabase에 저장되며, 등록된 구글 계정 하나만 접속할 수 있습니다.
 
 ```
-index.html          앱 전체 (마크업 + 스타일 + 로직)
-config.js           Supabase 접속 정보 ← 직접 채워야 함
-schema.sql          Supabase 테이블 + RLS 정책 ← 한 번 실행
-migration-leave.sql 휴가 컬럼 추가 ← 기존 설치에서만 한 번 실행
+index.html               앱 전체 (마크업 + 스타일 + 로직)
+config.js                Supabase 접속 정보
+schema.sql               테이블 + RLS 정책 ← 신규 설치 시 한 번 실행
+migration-leave.sql      휴가 컬럼 추가 ← 기존 설치에서만 한 번 실행
+.github/workflows/       Supabase 7일 자동정지 방지
+CLAUDE.md                코드 구조와 작업 방식 (이어받을 때 먼저 읽을 것)
+```
+
+---
+
+## 현재 운영 정보
+
+여기 적힌 값은 전부 공개돼도 되는 것들입니다. 비밀은 저장소에 두지 않습니다.
+
+| | |
+|---|---|
+| 서비스 주소 | https://ilopark.github.io/dohee-worktime/ |
+| 배포 | `main` 에 push → GitHub Pages 자동 반영 (1~2분) |
+| Supabase 프로젝트 | `doriro-accountbook` (ref `dlolqjgiamonfilfntxk`) |
+| 테이블 | `dohee_work_log`, `dohee_allowed_emails` |
+| 로그인 | 구글 OAuth. `dohee_allowed_emails` 에 등록된 계정만 통과 |
+
+Supabase 프로젝트는 **도리로 가계부와 함께 씁니다.** 그래서 이름에 `dohee_` 접두어가 붙어 있고,
+Auth 설정을 만질 때 주의가 필요합니다. 아래 [주의사항](#주의사항)을 보세요.
+
+### 허용 계정 바꾸기
+
+앱 코드를 고칠 필요 없이 SQL 한 줄이면 됩니다. Supabase → SQL Editor:
+
+```sql
+-- 추가
+insert into public.dohee_allowed_emails (email) values ('someone@gmail.com')
+on conflict (email) do nothing;
+
+-- 제거
+delete from public.dohee_allowed_emails where email = 'someone@gmail.com';
 ```
 
 ---
@@ -107,15 +139,16 @@ git push
 
 ## 사용법
 
-날짜를 누르면 입력칸이 그날 성격에 맞게 바뀝니다.
+날짜를 누르면 입력칸이 그날 성격에 맞게 바뀝니다. **시간 입력칸은 하나뿐**이고, 그날이 평일이냐
+쉬는 날이냐에 따라 뜻이 바뀝니다. 어느 쪽이든 그대로 추가 근로시간이 됩니다.
 
-| | 입력하는 값 |
+| | 화면에 나오는 것 |
 |---|---|
-| 평일 | 기본 근무 **8시간 고정** + `휴가` (반반차 2h / 반차 4h / 연차 8h) + `야근 시간` |
-| 주말·휴일 | `근무 시간` |
+| 평일 | `기본 근무` 8시간 (고정, 입력 불가) + `휴가` 선택 + **`야근 시간`** |
+| 주말·휴일 | **`휴일 근무 시간`** |
 
-평일 8시간은 자동으로 잡히므로 따로 입력하지 않습니다. 휴가를 고르면 그만큼 총 근로시간에서 빠집니다.
-야근은 평일에만 있는 개념이라 주말·휴일에는 나타나지 않습니다.
+평일 8시간은 자동으로 잡히므로 따로 입력하지 않습니다. 휴가는 반반차 2h / 반차 4h / 연차 8h 중에
+고르며, 고른 만큼 총 근로시간에서 빠집니다. 휴가는 평일에만 있습니다.
 
 `+0.5` `+1` `+2` `+4` `+8` 버튼은 **누를 때마다 기존 값에 더해집니다.** 값을 비우려면 옆의 `지우기`를 누르세요.
 
@@ -131,8 +164,12 @@ git push
 > **총 근로시간의 평일 집계 범위** — 이번 달은 오늘까지만, 지난 달은 월 전체를 셉니다.
 > 달 전체를 세면 월초에 아직 일하지도 않은 시간이 찍혀서 틀린 숫자로 보이기 때문입니다.
 
-화면이 좁으면(모바일) 달력 바로 아래에 입력칸이 오고 근무 내역이 맨 아래로 갑니다.
-내역이 길어져도 날짜를 고른 뒤 한참 스크롤할 일이 없습니다. PC에서는 입력칸이 오른쪽에 그대로 붙어 있습니다.
+### 화면 크기에 따라 달라지는 것
+
+| 폭 | 달라지는 점 |
+|---|---|
+| 900px 이하 | 한 줄 배치로 바뀌고 **달력 → 기록 입력 → 근무 내역** 순이 됩니다. 내역이 길어져도 날짜를 고른 뒤 한참 스크롤할 일이 없습니다. |
+| 640px 이하 | 달력 한 칸이 50px 남짓이라 태그에서 라벨을 빼고 숫자만 남깁니다 (`근무 8h` → `8h`). 초록은 휴일근무, 주황은 야근, 보라는 휴가이고 전체 문구는 태그 툴팁에 남아 있습니다. |
 
 ### 공휴일이 틀렸을 때
 
@@ -154,8 +191,60 @@ git push
 `file://`로 열면 ES 모듈과 OAuth 리다이렉트가 동작하지 않습니다. 로컬 확인은 HTTP 서버로 하세요.
 
 ```bash
-python -m http.server 5173
+python -m http.server 5173 --directory .
 ```
 
 그리고 `http://localhost:5173`을 Supabase의 `Redirect URLs`와 구글 OAuth 설정에 추가하면
-로컬에서도 로그인이 됩니다. 배포만 할 거라면 필요 없습니다.
+로컬에서도 로그인이 됩니다. 로그인 없이 화면만 확인하는 방법은 [CLAUDE.md](CLAUDE.md)에 있습니다.
+
+---
+
+## 문제 해결
+
+### 고친 게 화면에 안 나올 때
+
+GitHub Pages는 `Cache-Control: max-age=600`을 줍니다. 브라우저가 이전 파일을 최대 10분간 들고 있어서,
+push 직후에는 옛 화면이 보일 수 있습니다. 특히 폰에서는 새로고침만으로 안 풀릴 때가 있습니다.
+
+주소 뒤에 아무 쿼리나 붙이면 즉시 우회됩니다.
+
+```
+https://ilopark.github.io/dohee-worktime/?v=2
+```
+
+배포본에 실제로 반영됐는지는 이렇게 확인합니다.
+
+```bash
+curl -s https://ilopark.github.io/dohee-worktime/index.html | grep "찾을문구"
+```
+
+### `Could not find the 'xxx' column ... in the schema cache`
+
+코드는 새 컬럼을 쓰는데 DB에 아직 없다는 뜻입니다. 안 돌린 마이그레이션이 있는지 확인하세요.
+현재까지 필요한 것은 `migration-leave.sql` 하나입니다.
+
+### 로그인 후 엉뚱한 주소로 튕길 때
+
+Supabase는 앱이 넘긴 복귀 주소가 **Redirect URLs 목록에 없으면 무시하고 Site URL로 보냅니다.**
+이 프로젝트는 가계부와 공유하므로 Site URL이 가계부 주소로 잡혀 있습니다.
+`https://ilopark.github.io/dohee-worktime/`가 Redirect URLs에 들어 있는지 확인하세요.
+
+### Supabase 프로젝트가 일시정지됐을 때
+
+무료 플랜은 7일간 요청이 없으면 정지됩니다. `.github/workflows/keep-alive.yml`이 매일 찔러서
+막고 있지만, 이미 정지됐다면 핑으로는 못 깨웁니다. 대시보드에서 **Restore**를 눌러야 하고
+데이터는 그대로 보존됩니다.
+
+---
+
+## 주의사항
+
+- **Secret key(`sb_secret_...`)를 `config.js`에 넣지 마세요.** RLS를 통째로 무시하는 키라
+  공개 저장소에 올라가면 계정 제한이 무의미해집니다. 여기 들어갈 값은 Publishable key 뿐입니다.
+- **Supabase의 `Site URL`을 바꾸지 마세요.** 도리로 가계부가 그 값에 의존합니다.
+  이 앱은 복귀 주소를 직접 넘기므로 `Redirect URLs`에 등록만 되어 있으면 됩니다.
+- **Auth는 프로젝트 단위로 공유됩니다.** 가계부 사용자도 이 앱에 로그인 시도는 할 수 있지만
+  `dohee_allowed_emails`에 없으면 데이터는 한 행도 못 봅니다. 반대로 이 앱의 계정도
+  가계부에 로그인은 됩니다 — 가계부 쪽 RLS가 느슨하다면 그쪽을 따로 점검하세요.
+- **접속 토큰을 어디에도 붙여넣지 마세요.** 로그인 후 주소창에 붙는 `#access_token=...`에는
+  refresh token이 함께 들어 있어 사실상 비밀번호에 준합니다.
