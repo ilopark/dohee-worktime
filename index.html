@@ -14,6 +14,7 @@
     --sat:#2f6fd0;
     --ot:#b25a00; --ot-soft:#fdf1e2;
     --work:#0f7a5a; --work-soft:#e4f5ef;
+    --leave:#6c4ed8; --leave-soft:#eee9fd;
     --shadow:0 1px 2px rgba(16,24,40,.05), 0 8px 24px rgba(16,24,40,.06);
     --r:12px;
   }
@@ -27,6 +28,7 @@
       --sat:#6aa8ff;
       --ot:#e8a24a; --ot-soft:#33260f;
       --work:#3fd0a0; --work-soft:#0f2e25;
+      --leave:#a892ff; --leave-soft:#241d3d;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
     }
   }
@@ -77,7 +79,18 @@
   .dot.w{background:var(--work)} .dot.o{background:var(--ot)}
   .dot.h{background:var(--holiday)} .dot.t{background:var(--accent)}
 
-  .grid2{display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; align-items:start}
+  /* PC: 왼쪽에 달력과 내역, 오른쪽에 입력 패널.
+     모바일: 달력 → 입력 → 내역 순. 내역이 길어져도 입력이 달력 바로 아래 붙어 있게. */
+  .grid2{
+    display:grid; gap:16px; align-items:start;
+    grid-template-columns:minmax(0,1fr) 320px;
+    grid-template-areas:
+      "cal  side"
+      "list side";
+  }
+  .grid2 > .cal{grid-area:cal}
+  .grid2 > .side{grid-area:side}
+  .grid2 > .listbox{grid-area:list}
 
   .cal{background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow)}
   .dow{display:grid; grid-template-columns:repeat(7,1fr); background:var(--panel-2); border-bottom:1px solid var(--line)}
@@ -113,6 +126,7 @@
   }
   .tag.w{background:var(--work-soft); color:var(--work)}
   .tag.o{background:var(--ot-soft); color:var(--ot)}
+  .tag.l{background:var(--leave-soft); color:var(--leave)}
   .memo-dot{position:absolute; top:7px; right:7px; width:5px;height:5px;border-radius:50%;background:var(--ink-3)}
 
   .side{display:flex; flex-direction:column; gap:16px; position:sticky; top:16px}
@@ -123,16 +137,23 @@
   .fld{margin-bottom:12px}
   .fld label{display:block; font-size:12px; color:var(--ink-2); margin-bottom:5px; font-weight:600}
   .fld .hint{font-size:11px; color:var(--ink-3); font-weight:400; margin-top:4px; line-height:1.45}
-  input[type=number], input[type=text]{
+  input[type=number], input[type=text], select{
     width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
     background:var(--panel-2); outline:none;
   }
-  input:focus{border-color:var(--accent)}
-  input:disabled{opacity:.4; cursor:not-allowed}
-  .chips{display:flex; gap:5px; flex-wrap:wrap; margin-top:6px}
+  input:focus, select:focus{border-color:var(--accent)}
+  input:disabled, select:disabled{opacity:.4; cursor:not-allowed}
+  .fixedval{
+    font-size:15px; font-weight:700; padding:8px 10px; border-radius:8px;
+    border:1px dashed var(--line); background:var(--panel-2);
+  }
+  .fixedval .cut{font-size:12px; font-weight:600; color:var(--leave); margin-left:6px}
+  .chips{display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; align-items:center}
   .chip{font-size:11.5px; padding:3px 8px; border-radius:99px; border:1px solid var(--line);
     background:var(--panel-2); cursor:pointer; color:var(--ink-2)}
   .chip:hover{border-color:var(--accent); color:var(--accent)}
+  .chip.reset{border-style:dashed; color:var(--ink-3); margin-left:auto}
+  .chip.reset:hover{border-color:var(--holiday); color:var(--holiday)}
   .selday{font-size:15px; font-weight:700; letter-spacing:-.02em}
   .selkind{font-size:12px; margin-top:3px}
   .selkind .b{display:inline-block; padding:2px 7px; border-radius:99px; font-weight:700; font-size:11px}
@@ -177,7 +198,13 @@
 
   @media (max-width:900px){
     .cards{grid-template-columns:repeat(2,1fr)}
-    .grid2{grid-template-columns:1fr}
+    .grid2{
+      grid-template-columns:1fr;
+      grid-template-areas:
+        "cal"
+        "side"
+        "list";
+    }
     .side{position:static}
     .day{min-height:76px}
   }
@@ -233,9 +260,9 @@
       <div class="meta" id="sumWdOtDays">0일</div>
     </div>
     <div class="card">
-      <div class="lab"><span class="dot w"></span>휴일 근무 중 야근</div>
-      <div class="val" id="sumHolOt">0<small>시간</small></div>
-      <div class="meta" id="sumHolOtDays">0일</div>
+      <div class="lab"><span class="dot w"></span>총 근로시간</div>
+      <div class="val" id="sumTotalWork">0<small>시간</small></div>
+      <div class="meta" id="sumTotalWorkMeta">평일 0h · 휴일 0h · 야근 0h</div>
     </div>
     <div class="card">
       <div class="lab"><span class="dot t"></span>이번 달 총 추가근로</div>
@@ -245,16 +272,9 @@
   </div>
 
   <div class="grid2">
-    <div>
-      <div class="cal">
-        <div class="dow"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
-        <div class="days" id="days"></div>
-      </div>
-
-      <div class="box" style="margin-top:16px">
-        <h3>이번 달 근무 내역</h3>
-        <div class="list" id="list"></div>
-      </div>
+    <div class="cal">
+      <div class="dow"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+      <div class="days" id="days"></div>
     </div>
 
     <div class="side">
@@ -266,29 +286,51 @@
 
           <div style="height:12px"></div>
 
-          <div class="fld">
-            <label id="labWork">근무 시간 (주말·휴일)</label>
+          <!-- 주말·휴일에만 보인다 -->
+          <div class="fld" id="fldWork">
+            <label>근무 시간</label>
             <input type="number" id="inWork" min="0" max="24" step="0.5" placeholder="0">
-            <div class="chips" id="chipWork">
-              <span class="chip" data-t="work" data-v="2">2h</span>
-              <span class="chip" data-t="work" data-v="4">4h</span>
-              <span class="chip" data-t="work" data-v="6">6h</span>
-              <span class="chip" data-t="work" data-v="8">8h</span>
+            <div class="chips" data-t="work">
+              <span class="chip" data-v="0.5">+0.5</span>
+              <span class="chip" data-v="1">+1</span>
+              <span class="chip" data-v="2">+2</span>
+              <span class="chip" data-v="4">+4</span>
+              <span class="chip" data-v="8">+8</span>
+              <span class="chip reset">지우기</span>
             </div>
-            <div class="hint" id="hintWork">평일에는 정규근무라 기록하지 않습니다.</div>
+            <div class="hint">이 날 실제로 일한 총 시간입니다. 버튼은 누를 때마다 더해집니다.</div>
           </div>
 
-          <div class="fld">
-            <label id="labOt">야근 시간</label>
+          <!-- 평일에만 보인다 -->
+          <div class="fld" id="fldBase">
+            <label>기본 근무</label>
+            <div class="fixedval" id="baseVal">8시간</div>
+            <div class="hint">평일 정규근무는 8시간 고정입니다.</div>
+          </div>
+
+          <div class="fld" id="fldLeave">
+            <label>휴가</label>
+            <select id="inLeave">
+              <option value="0">없음</option>
+              <option value="2">반반차 (2시간)</option>
+              <option value="4">반차 (4시간)</option>
+              <option value="8">연차 (8시간)</option>
+            </select>
+            <div class="hint">선택한 시간만큼 총 근로시간에서 빠집니다.</div>
+          </div>
+
+          <div class="fld" id="fldOt">
+            <label>야근 시간</label>
             <input type="number" id="inOt" min="0" max="24" step="0.5" placeholder="0">
-            <div class="chips">
-              <span class="chip" data-t="ot" data-v="1">1h</span>
-              <span class="chip" data-t="ot" data-v="2">2h</span>
-              <span class="chip" data-t="ot" data-v="3">3h</span>
-              <span class="chip" data-t="ot" data-v="4">4h</span>
+            <div class="chips" data-t="ot">
+              <span class="chip" data-v="0.5">+0.5</span>
+              <span class="chip" data-v="1">+1</span>
+              <span class="chip" data-v="2">+2</span>
+              <span class="chip" data-v="4">+4</span>
+              <span class="chip" data-v="8">+8</span>
+              <span class="chip reset">지우기</span>
             </div>
-            <div class="hint" id="hintOt"></div>
-            <div class="warn" id="warnOt">야근 시간이 근무 시간보다 많습니다.</div>
+            <div class="hint">정규 퇴근시간 이후 더 일한 시간입니다.</div>
           </div>
 
           <div class="fld">
@@ -311,6 +353,11 @@
         </div>
       </div>
     </div>
+
+    <div class="box listbox">
+      <h3>이번 달 근무 내역</h3>
+      <div class="list" id="list"></div>
+    </div>
   </div>
 </div>
 
@@ -319,6 +366,9 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const LS_HOL = "dohee.holidays.v1";   // 공휴일은 공개 자료라 네트워크 캐시로만 로컬에 둔다
+
+const WEEKDAY_BASE = 8;               // 평일 정규근무 시간 (고정)
+const LEAVE_LABEL = { 2:"반반차", 4:"반차", 8:"연차" };
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -420,8 +470,9 @@ async function loadAll(){
   if (error){ setStatus("불러오기 실패: " + error.message, true); return false; }
   state.entries = {}; state.override = {};
   data.forEach(r => {
-    const w = Number(r.work_hours) || 0, o = Number(r.ot_hours) || 0, memo = r.memo || "";
-    if (w > 0 || o > 0 || memo) state.entries[r.day] = { work:w, ot:o, memo };
+    const w = Number(r.work_hours) || 0, o = Number(r.ot_hours) || 0;
+    const lv = Number(r.leave_hours) || 0, memo = r.memo || "";
+    if (w > 0 || o > 0 || lv > 0 || memo) state.entries[r.day] = { work:w, ot:o, leave:lv, memo };
     if (r.day_override) state.override[r.day] = r.day_override;
   });
   return true;
@@ -431,16 +482,17 @@ async function loadAll(){
 async function pushDay(k){
   const e = state.entries[k];
   const ov = state.override[k] || null;
-  const blank = (!e || (!e.work && !e.ot && !e.memo)) && !ov;
+  const blank = (!e || (!e.work && !e.ot && !e.leave && !e.memo)) && !ov;
 
   setStatus("저장 중…");
   const { error } = blank
     ? await sb.from("dohee_work_log").delete().eq("day", k)
     : await sb.from("dohee_work_log").upsert({
         day: k,
-        work_hours: e ? e.work : 0,
-        ot_hours:   e ? e.ot   : 0,
-        memo:       e ? e.memo : "",
+        work_hours:  e ? e.work  : 0,
+        ot_hours:    e ? e.ot    : 0,
+        leave_hours: e ? e.leave : 0,
+        memo:        e ? e.memo  : "",
         day_override: ov,
         updated_at: new Date().toISOString()
       });
@@ -500,16 +552,19 @@ function paint(){
     if (e && inMonth){
       const tags = document.createElement("div");
       tags.className = "tags";
-      // 평일로 바뀐 날의 근무 시간은 합계에서 빠지므로 태그도 감춘다
-      if (e.work > 0 && isRest(k)){
-        const t1 = document.createElement("div");
-        t1.className = "tag w"; t1.textContent = "근무 " + fmtHours(e.work) + "h";
-        tags.appendChild(t1);
-      }
-      if (e.ot > 0){
-        const t2 = document.createElement("div");
-        t2.className = "tag o"; t2.textContent = "야근 " + fmtHours(e.ot) + "h";
-        tags.appendChild(t2);
+      const rest = isRest(k);
+      // 성격이 안 맞는 값은 합계에서도 빠지므로 태그도 감춘다
+      // (휴일↔평일을 뒤집으면 예전에 넣어둔 값이 남아 있을 수 있다)
+      const add = (cls, text) => {
+        const t = document.createElement("div");
+        t.className = "tag " + cls; t.textContent = text;
+        tags.appendChild(t);
+      };
+      if (rest){
+        if (e.work > 0) add("w", "근무 " + fmtHours(e.work) + "h");
+      } else {
+        if (e.leave > 0) add("l", LEAVE_LABEL[e.leave] || "휴가");
+        if (e.ot > 0) add("o", "야근 " + fmtHours(e.ot) + "h");
       }
       cell.appendChild(tags);
       if (e.memo){
@@ -532,32 +587,54 @@ function monthEntries(){
   const prefix = view.getFullYear() + "-" + pad(view.getMonth()+1) + "-";
   return Object.keys(state.entries)
     .filter(k => k.startsWith(prefix))
-    .filter(k => { const e = state.entries[k]; return e.work > 0 || e.ot > 0 || e.memo; })
+    .filter(k => { const e = state.entries[k]; return e.work > 0 || e.ot > 0 || e.leave > 0 || e.memo; })
     .sort();
 }
 
-function summarize(){
-  let holWork=0, holWorkDays=0, wdOt=0, wdOtDays=0, holOt=0, holOtDays=0;
+// 평일 기본 근무를 어느 날까지 세느냐. 이번 달이면 오늘까지만 센다 —
+// 달 전체를 세면 월초에 아직 일하지도 않은 시간이 총 근로시간에 찍힌다.
+function baseCountLimit(y, m, lastDay){
+  const today = new Date();
+  const ty = today.getFullYear(), tm = today.getMonth();
+  if (y === ty && m === tm) return today.getDate();
+  return (y < ty || (y === ty && m < tm)) ? lastDay : 0;
+}
 
-  monthEntries().forEach(k => {
+function summarize(){
+  const y = view.getFullYear(), m = view.getMonth();
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const upto = baseCountLimit(y, m, lastDay);
+
+  let holWork=0, holWorkDays=0, wdOt=0, wdOtDays=0;
+  let wdBase=0, leaveH=0;
+
+  for (let dd=1; dd<=lastDay; dd++){
+    const k = y + "-" + pad(m+1) + "-" + pad(dd);
     const e = state.entries[k];
     if (isRest(k)){
-      if (e.work > 0){ holWork += e.work; holWorkDays++; }
-      if (e.ot > 0){ holOt += e.ot; holOtDays++; }
-    } else if (e.ot > 0){
-      wdOt += e.ot; wdOtDays++;
+      if (e && e.work > 0){ holWork += e.work; holWorkDays++; }
+    } else {
+      if (e && e.ot > 0){ wdOt += e.ot; wdOtDays++; }
+      if (dd <= upto){
+        wdBase += WEEKDAY_BASE;
+        if (e && e.leave > 0) leaveH += e.leave;
+      }
     }
-  });
+  }
+
+  const wdActual = Math.max(0, wdBase - leaveH);
+  const extra = holWork + wdOt;
 
   setVal("sumHolWork", holWork);
   setVal("sumWdOt", wdOt);
-  setVal("sumHolOt", holOt);
-  setVal("sumTotal", holWork + wdOt);
+  setVal("sumTotalWork", wdActual + extra);
+  setVal("sumTotal", extra);
 
   $("sumHolWorkDays").textContent = holWorkDays + "일 근무";
   $("sumWdOtDays").textContent = wdOtDays + "일 야근";
-  $("sumHolOtDays").textContent =
-    holOtDays === 0 ? "휴일 야근 없음" : holOtDays + "일 (휴일 근무 + 야근 중복)";
+  $("sumTotalWorkMeta").textContent =
+    "평일 " + fmtHours(wdActual) + "h · 휴일 " + fmtHours(holWork) + "h · 야근 " + fmtHours(wdOt) + "h"
+    + (leaveH > 0 ? " (휴가 −" + fmtHours(leaveH) + "h)" : "");
   $("sumTotalMeta").textContent =
     "주말·휴일 " + fmtHours(holWork) + "h + 평일 야근 " + fmtHours(wdOt) + "h";
 }
@@ -582,8 +659,11 @@ function renderList(){
         ' (' + DOW[d.getDay()] + ')</div>' +
       '<div class="n">' + esc(e.memo || name) + '</div>' +
       '<div class="v">' +
-        (e.work > 0 && rest ? '<span class="tag w">근무 ' + fmtHours(e.work) + 'h</span>' : '') +
-        (e.ot > 0 ? '<span class="tag o">야근 ' + fmtHours(e.ot) + 'h</span>' : '') +
+        (rest
+          ? (e.work > 0 ? '<span class="tag w">근무 ' + fmtHours(e.work) + 'h</span>' : '')
+          : (e.leave > 0 ? '<span class="tag l">' + (LEAVE_LABEL[e.leave] || "휴가") + '</span>' : '') +
+            (e.ot > 0 ? '<span class="tag o">야근 ' + fmtHours(e.ot) + 'h</span>' : '')
+        ) +
       '</div>';
     row.addEventListener("click", () => { selected = k; paint(); });
     el.appendChild(row);
@@ -592,15 +672,16 @@ function renderList(){
 
 // ── 에디터 ──────────────────────────────────────────────────────
 function renderEditor(){
-  const inWork = $("inWork"), inOt = $("inOt"), inMemo = $("inMemo"), inOv = $("inOverride");
+  const inWork = $("inWork"), inOt = $("inOt"), inMemo = $("inMemo");
+  const inOv = $("inOverride"), inLeave = $("inLeave");
 
   if (!selected){
     $("selDay").textContent = "날짜를 선택하세요";
     $("selKind").textContent = "";
     inWork.value = inOt.value = inMemo.value = "";
-    inWork.disabled = inOt.disabled = inMemo.disabled = inOv.disabled = true;
-    $("hintWork").textContent = "";
-    $("hintOt").textContent = "";
+    inLeave.value = "0";
+    inWork.disabled = inOt.disabled = inMemo.disabled = inOv.disabled = inLeave.disabled = true;
+    ["fldWork","fldBase","fldLeave","fldOt"].forEach(id => { $(id).hidden = true; });
     return;
   }
 
@@ -609,13 +690,20 @@ function renderEditor(){
   $("selDay").textContent = (d.getMonth()+1) + "월 " + d.getDate() + "일 (" + DOW[d.getDay()] + ")";
   $("selKind").innerHTML = '<span class="b ' + kind.cls + '">' + esc(kind.text) + '</span>';
 
-  inOt.disabled = inMemo.disabled = inOv.disabled = false;
-  inWork.disabled = !kind.rest;
+  inWork.disabled = inOt.disabled = inMemo.disabled = inOv.disabled = inLeave.disabled = false;
 
-  const e = state.entries[selected] || { work:0, ot:0, memo:"" };
+  const e = state.entries[selected] || { work:0, ot:0, leave:0, memo:"" };
   inWork.value = e.work || "";
   inOt.value = e.ot || "";
+  inLeave.value = String(e.leave || 0);
   inMemo.value = e.memo || "";
+
+  // 주말·휴일은 근무 시간만, 평일은 기본 8시간 + 휴가 + 야근
+  $("fldWork").hidden = !kind.rest;
+  $("fldBase").hidden = kind.rest;
+  $("fldLeave").hidden = kind.rest;
+  $("fldOt").hidden = kind.rest;
+  if (!kind.rest) renderBaseVal();
 
   // 자연스럽게 휴일인 날엔 "평일로 되돌리기", 평일엔 "휴일로 지정"으로 뜻이 뒤집힌다
   const natural = naturalRest(selected);
@@ -627,40 +715,27 @@ function renderEditor(){
   $("hintOverride").textContent =
     natural ? "공휴일 자료가 틀렸거나 평소처럼 출근한 날에 사용하세요."
             : "회사 창립기념일·임시공휴일처럼 자료에 없는 날에 사용하세요.";
-
-  $("chipWork").style.opacity = kind.rest ? "1" : ".35";
-  $("chipWork").style.pointerEvents = kind.rest ? "auto" : "none";
-
-  if (kind.rest){
-    $("labWork").textContent = "근무 시간 (주말·휴일)";
-    $("hintWork").textContent = "이 날 실제로 일한 총 시간을 입력하세요.";
-    $("labOt").textContent = "그중 야근 시간";
-    $("hintOt").textContent = "휴일 근무 중 늦게까지 남은 시간. 위 근무 시간에 포함된 값입니다.";
-  } else {
-    $("labWork").textContent = "근무 시간 (평일은 입력 불가)";
-    $("hintWork").textContent = "평일 정규근무는 추가근로에 포함하지 않습니다.";
-    $("labOt").textContent = "야근 시간";
-    $("hintOt").textContent = "정규 퇴근시간 이후 더 일한 시간을 입력하세요.";
-  }
-  checkWarn();
 }
 
-function checkWarn(){
-  const w = parseFloat($("inWork").value) || 0;
-  const o = parseFloat($("inOt").value) || 0;
-  const rest = selected ? kindLabel(selected).rest : false;
-  $("warnOt").style.display = (rest && o > w) ? "block" : "none";
+// 휴가를 고르면 기본 8시간에서 얼마가 빠지는지 바로 보여준다
+function renderBaseVal(){
+  const lv = parseFloat($("inLeave").value) || 0;
+  $("baseVal").innerHTML = fmtHours(Math.max(0, WEEKDAY_BASE - lv)) + "시간"
+    + (lv > 0 ? '<span class="cut">' + (LEAVE_LABEL[lv] || "휴가") + " −" + fmtHours(lv) + "h</span>" : "");
 }
 
 async function doSave(){
   if (!selected) return;
   const rest = kindLabel(selected).rest;
-  const w = rest ? (parseFloat($("inWork").value) || 0) : 0;
-  const o = parseFloat($("inOt").value) || 0;
+  // 성격에 안 맞는 값은 아예 0으로 지운다. 그래야 나중에 휴일↔평일을 뒤집어도
+  // 예전 값이 되살아나 합계를 흔들지 않는다.
+  const w  = rest ? (parseFloat($("inWork").value) || 0) : 0;
+  const o  = rest ? 0 : (parseFloat($("inOt").value) || 0);
+  const lv = rest ? 0 : (parseFloat($("inLeave").value) || 0);
   const memo = $("inMemo").value.trim();
 
-  if (w === 0 && o === 0 && !memo) delete state.entries[selected];
-  else state.entries[selected] = { work:w, ot:o, memo };
+  if (w === 0 && o === 0 && lv === 0 && !memo) delete state.entries[selected];
+  else state.entries[selected] = { work:w, ot:o, leave:lv, memo };
 
   paint();
   await pushDay(selected);
@@ -684,8 +759,7 @@ $("today").onclick = () => {
 };
 $("save").onclick = doSave;
 $("clear").onclick = doClear;
-$("inWork").oninput = checkWarn;
-$("inOt").oninput = checkWarn;
+$("inLeave").onchange = renderBaseVal;
 $("inOverride").onchange = async function(){
   if (!selected) return;
   if (this.checked) state.override[selected] = naturalRest(selected) ? "wd" : "hol";
@@ -693,10 +767,13 @@ $("inOverride").onchange = async function(){
   paint();
   await pushDay(selected);
 };
-document.querySelectorAll(".chip").forEach(c => {
+// 버튼은 값을 갈아치우지 않고 더한다. 그래서 지우는 수단이 따로 필요하다.
+document.querySelectorAll(".chips .chip").forEach(c => {
+  const target = c.closest(".chips").dataset.t === "work" ? "inWork" : "inOt";
   c.onclick = () => {
-    $(c.dataset.t === "work" ? "inWork" : "inOt").value = c.dataset.v;
-    checkWarn();
+    const el = $(target);
+    if (c.classList.contains("reset")){ el.value = ""; return; }
+    el.value = fmtHours(Math.min(24, (parseFloat(el.value) || 0) + parseFloat(c.dataset.v)));
   };
 });
 document.addEventListener("keydown", e => {

@@ -39,21 +39,28 @@ grant execute on function public.dohee_is_allowed() to anon, authenticated;
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. 근무 기록 — 하루에 한 행
---    work_hours : 주말·휴일에 실제로 일한 시간
---    ot_hours   : 야근 시간 (휴일이면 work_hours 에 포함된 값)
---    day_override : 'hol' = 평일을 휴일로 지정, 'wd' = 공휴일을 평일로 처리
+--    평일은 기본 8시간 근무로 보고 따로 저장하지 않는다. 여기 쌓이는 건 그 기준에서
+--    벗어나는 값들뿐이다.
+--
+--    work_hours  : 주말·휴일에 실제로 일한 시간 (평일이면 0)
+--    ot_hours    : 평일 야근 시간 (주말·휴일이면 0)
+--    leave_hours : 평일 휴가 — 반반차 2 / 반차 4 / 연차 8. 총 근로시간에서 빠진다.
+--    day_override: 'hol' = 평일을 휴일로 지정, 'wd' = 공휴일을 평일로 처리
 -- ─────────────────────────────────────────────────────────────
 create table if not exists public.dohee_work_log (
   day          date primary key,
   work_hours   numeric(4,2) not null default 0,
   ot_hours     numeric(4,2) not null default 0,
+  leave_hours  numeric(4,2) not null default 0,
   memo         text         not null default '',
   day_override text,
   updated_at   timestamptz  not null default now(),
   constraint dohee_work_log_override_check
     check (day_override is null or day_override in ('hol','wd')),
   constraint dohee_work_log_hours_check
-    check (work_hours >= 0 and work_hours <= 24 and ot_hours >= 0 and ot_hours <= 24)
+    check (work_hours  >= 0 and work_hours  <= 24
+       and ot_hours    >= 0 and ot_hours    <= 24
+       and leave_hours in (0, 2, 4, 8))
 );
 
 alter table public.dohee_work_log enable row level security;
